@@ -1,0 +1,4 @@
+*.vcf
+*.xml
+*.iml
+chat_*.txt
