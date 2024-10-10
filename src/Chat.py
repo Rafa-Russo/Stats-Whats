@@ -1,17 +1,19 @@
 import re
 from datetime import datetime
 from unidecode import unidecode
-from src.utils import is_media_omitted, is_deleted_message
+from src.Pre_processing import correct_messages, tokenize_messages, remove_stopwords
+from src.utils import is_media_omitted, is_deleted_message, is_edited_message
 
 
 class Message:
-    def __init__(self, timestamp, author, content):
+    def __init__(self, id, timestamp, author, content):
+        self.id = id
         self.timestamp = timestamp
         self.author = author
         self.content = content
 
     def __repr__(self):
-        return f"{self.timestamp} - {self.author}: {self.content}"
+        return f"id: {self.id} => {self.timestamp} - {self.author}: {self.content}"
 
 
 class Person:
@@ -24,58 +26,38 @@ class Person:
         self.messages_corrected_no_stopwords = []
         self.messages_tokenized = []
 
-    def correct_messages(self, file_path):
-        """Checks the file path for a dictionary of regex patterns to correct messages.
-        The dictionary should be in the format: {"pattern": "replacement"}.
-
-        Args:
-            file_path (str): The file path to the dictionary of regex patterns.
-
-        Returns:
-            None
-            """
-        # TODO Test
-        with open(file_path, 'r', encoding='utf-8') as f:
-            corrections = dict([line.strip().split(",") for line in f])
-
-        for message in self.messages:
-            corrected_message = message.content
-            for pattern, replacement in corrections.items():
-                corrected_message = re.sub(pattern, replacement, corrected_message)
-            self.messages_corrected.append(corrected_message)
-
-    def remove_stopwords(self, file_path):
-        """ Removes stopwords from messages using regex patterns.
-
-        Args:
-            file_path (str): The file path to the list of stopwords.
-
-        Returns:
-            None
-                """
-        # TODO Test
-        with open(file_path, 'r', encoding='utf-8') as f:
-            stopwords = [line.strip() for line in f]
-
-        for message in self.messages_corrected:
-            message_no_stopwords = message
-            for stopword in stopwords:
-                message_no_stopwords = re.sub(stopword, "", message_no_stopwords)
-            self.messages_corrected_no_stopwords.append(message_no_stopwords)
-
-    def tokenize_messages(self):
-        """Tokenizes messages into words.
-
-        Args:
-            None
-
-        Returns:
-            None
-            """
-        for message in self.messages_corrected_no_stopwords:
-            self.messages_tokenized.append(message.split())
     def add_message(self, message):
         self.messages.append(message)
+
+    def get_deleted_messages(self):
+        return self.deleted_messages
+
+    def get_media_messages(self):
+        return self.media_messages
+
+    def get_messages(self):
+        return self.messages
+
+    def get_messages_corrected(self):
+        if self.messages_corrected:
+            return self.messages_corrected
+
+        self.messages_corrected = correct_messages(self.messages)
+        return self.messages_corrected
+
+    def get_messages_corrected_no_stopwords(self):
+        if self.messages_corrected_no_stopwords:
+            return self.messages_corrected_no_stopwords
+
+        self.messages_corrected_no_stopwords = remove_stopwords(self.get_messages_corrected())
+        return self.messages_corrected_no_stopwords
+
+    def get_messages_tokenized(self):
+        if self.messages_tokenized:
+            return self.messages_tokenized
+
+        self.messages_tokenized = tokenize_messages(self.get_messages_corrected_no_stopwords())
+        return self.messages_tokenized
 
     def __repr__(self):
         return f"Person({self.name}, {len(self.messages)} messages)"
@@ -94,7 +76,7 @@ class ChatParser:
 
         with open(self.file_path, 'r', encoding='utf-8') as f:
             current_message = None
-            for line in f:
+            for message_id, line in enumerate(f):
                 match = re.match(message_pattern, line)
                 if match:
                     # New message found
@@ -108,7 +90,8 @@ class ChatParser:
                     timestamp = datetime.strptime(timestamp_str, "%d/%m/%Y, %H:%M")
 
                     # Create a new message object
-                    current_message = Message(timestamp, author, content)
+                    current_message = Message(message_id, timestamp, author, content)
+
                     if is_deleted_message(content) or is_media_omitted(content):
                         if is_deleted_message(content):
                             self.deleted_messages.append(current_message)
@@ -117,6 +100,8 @@ class ChatParser:
                             self.media_messages.append(current_message)
                             self.people[author].media_messages.append(current_message)
                     else:
+                        if is_edited_message(content):
+                            current_message.content = current_message.content[:-26]
                         self.messages.append(current_message)
                         self.people[author].add_message(current_message)
 

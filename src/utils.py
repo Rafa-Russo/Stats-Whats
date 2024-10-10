@@ -9,11 +9,15 @@ def load_custom_stopwords(filepath):
 
 
 def is_media_omitted(text):
-    return text == "<Media omitted>"
+    return text == "<media omitted>"
 
 
 def is_deleted_message(text):
     return text == "This message was deleted" or text == "You deleted this message"
+
+
+def is_edited_message(text):
+    return text.endswith("<this message was edited>")
 
 
 def match_regex_list(word, list_words):

@@ -9,31 +9,9 @@ import nltk
 nltk.download('stopwords')
 
 
-def clean_and_tokenize(text):
-    # Remove media omitted
-    text = re.sub(r'<Media omitted>', '', text)
-    text = re.sub(r'This message was deleted', '', text)
-    text = re.sub(r'You deleted this message', '', text)
-
-    # Remove punctuation and convert text to lowercase
-    text = re.sub(r'[^\w\s]', '', text.lower())
-
-    # Tokenize text into words
-    words = text.split()
-
-    # Remove stopwords with regex patterns in is_excluded_word
-    filtered_words = [word for word in words if not match_regex_list(word, all_stopwords)]
-    return filtered_words
-
-
-def get_word_frequencies(messages):
-    all_text = " ".join([message.content for message in messages])
-
-    # Tokenize and clean the text
-    words = clean_and_tokenize(all_text)
-
-    # Count word frequencies
-    word_freq = Counter(words)
+def get_word_frequencies(messages_tokenized):
+    all_text = [word for message in messages_tokenized for word in message]
+    word_freq = Counter(all_text)
 
     return word_freq
 
@@ -42,8 +20,8 @@ def plot_word_frequencies(word_freq, author):
     # Convert the Counter dictionary to a list of words and their frequencies
     word_data = list(word_freq.items())
 
-    # Sort by frequency and take the top 10 words
-    top_words = sorted(word_data, key=lambda x: x[1], reverse=True)[:10]
+    # Sort by frequency and take the top 20 words
+    top_words = sorted(word_data, key=lambda x: x[1], reverse=True)[:20]
 
     # Prepare the data for Plotly
     words, frequencies = zip(*top_words)
@@ -54,16 +32,13 @@ def plot_word_frequencies(word_freq, author):
     fig.show()
 
 
-def get_bigram_frequencies(messages):
+def get_bigram_frequencies(messages_tokenized):
     """Get bigram frequencies from a list of messages."""
-    # Concatenate all messages into one text
-    all_text = " ".join([message.content for message in messages])
-
-    # Tokenize and clean the text
-    words = clean_and_tokenize(all_text)
+    # Concatenate all words in one list
+    all_text = [word for message in messages_tokenized for word in message]
 
     # Generate bigrams (pairs of consecutive words)
-    bigrams_list = list(bigrams(words))
+    bigrams_list = list(bigrams(all_text))
 
     # Count bigram frequencies
     bigram_freq = Counter(bigrams_list)
@@ -76,8 +51,8 @@ def plot_bigram_frequencies(bigram_freq, author):
     # Convert the Counter dictionary to a list of bigrams and their frequencies
     bigram_data = list(bigram_freq.items())
 
-    # Sort by frequency and take the top 10 bigrams
-    top_bigrams = sorted(bigram_data, key=lambda x: x[1], reverse=True)[:10]
+    # Sort by frequency and take the top 20 bigrams
+    top_bigrams = sorted(bigram_data, key=lambda x: x[1], reverse=True)[:20]
 
     # Prepare the data for Plotly
     bigrams_str = [' '.join(bigram) for bigram, _ in top_bigrams]
@@ -91,12 +66,10 @@ def plot_bigram_frequencies(bigram_freq, author):
 
 stop_words = set(stopwords.words('portuguese'))
 
-exclude_patterns = ['<media omitted>']
-
-custom_stop_words = load_custom_stopwords('custom_stopwords.txt')
+custom_stop_words = load_custom_stopwords('src/custom_stopwords.txt')
 
 # Merge nltk stopwords and custom stopwords
-all_stopwords = stop_words.union(custom_stop_words, exclude_patterns)
+all_stopwords = stop_words.union(custom_stop_words)
 
 
 if __name__ == "__main__":
@@ -105,7 +78,7 @@ if __name__ == "__main__":
     people = parser.get_people()
 
     for person in people:
-        word_freq = get_word_frequencies(people[person].messages)
+        word_freq = get_word_frequencies(people[person].get_messages_tokenized())
         plot_word_frequencies(word_freq, person)
-        bigram_freq = get_bigram_frequencies(people[person].messages)
+        bigram_freq = get_bigram_frequencies(people[person].get_messages_tokenized())
         plot_bigram_frequencies(bigram_freq, person)

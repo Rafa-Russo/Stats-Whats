@@ -24,3 +24,12 @@
 \bja+\b
 \bge+n+te+\b
 \bfalar\b
+\be\b
+\bque\b
+\bd(e|a|o)\b
+\bcom\b
+\beu\b
+\bme\b
+\bem\b
+\bum\b
+\bna\b
