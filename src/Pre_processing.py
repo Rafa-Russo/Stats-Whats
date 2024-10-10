@@ -24,7 +24,6 @@ def correct_messages(messages, file_path=CORRECTION_DICT):
     Returns:
         messages_corrected: A list of corrected messages.
         """
-    # TODO Test
     with open(file_path, 'r', encoding='utf-8') as f:
         corrections = json.load(f)
 
@@ -48,7 +47,6 @@ def remove_stopwords(messages_corrected, file_path=STOPWORDS_LIST):
     Returns:
         messages_corrected_no_stopwords: A list of messages with stopwords removed.
             """
-    # TODO Test
     with open(file_path, 'r', encoding='utf-8') as f:
         stopwords = [line.strip() for line in f]
 
