@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Analysis</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>Chat Analysis</h1>
+    <form id="upload-form" enctype="multipart/form-data">
+        <input type="file" name="file" accept=".txt">
+        <button type="submit">Upload and Analyze</button>
+    </form>
+    <div id="results"></div>
+
+    <script>
+        $(document).ready(function() {
+            $('#upload-form').submit(function(e) {
+                e.preventDefault();
+                var formData = new FormData(this);
+                $.ajax({
+                    url: '/upload',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(data) {
+                        var resultsDiv = $('#results');
+                        resultsDiv.empty();
+                        for (var person in data.plots) {
+                            resultsDiv.append('<h2>' + person + '</h2>');
+                            resultsDiv.append('<h3>Word Frequencies</h3>');
+                            resultsDiv.append(data.plots[person].word_freq);
+                            resultsDiv.append('<h3>Bigram Frequencies</h3>');
+                            resultsDiv.append(data.plots[person].bigram_freq);
+                        }
+                    },
+                    error: function() {
+                        alert('An error occurred during file upload.');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,12 +1,20 @@
-import re
+import os
+from fastapi import FastAPI, File, UploadFile, Request
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
+import uvicorn
+from io import StringIO
+import plotly.express as px
+import plotly.io as pio
+from src.Chat import ChatParser
+from src.utils import load_custom_stopwords
 from nltk.corpus import stopwords
 from nltk.util import bigrams
 from collections import Counter
-import plotly.express as px
-from src.Chat import ChatParser
-from src.utils import load_custom_stopwords, match_regex_list
 import nltk
-nltk.download('stopwords')
+
+app = FastAPI()
+templates = Jinja2Templates(directory="templates")
 
 
 def get_word_frequencies(messages_tokenized):
@@ -29,7 +37,7 @@ def plot_word_frequencies(word_freq, author):
     # Create a bar plot using Plotly
     fig = px.bar(x=words, y=frequencies, labels={'x': 'Words', 'y': 'Frequency'},
                  title=f'Most Used Words by {author}')
-    fig.show()
+    return fig
 
 
 def get_bigram_frequencies(messages_tokenized):
@@ -61,7 +69,7 @@ def plot_bigram_frequencies(bigram_freq, author):
     # Create a bar plot using Plotly
     fig = px.bar(x=bigrams_str, y=frequencies, labels={'x': 'Bigrams', 'y': 'Frequency'},
                  title=f'Most Common Bigrams by {author}')
-    fig.show()
+    return fig
 
 
 stop_words = set(stopwords.words('portuguese'))
@@ -72,13 +80,45 @@ custom_stop_words = load_custom_stopwords('src/custom_stopwords.txt')
 all_stopwords = stop_words.union(custom_stop_words)
 
 
-if __name__ == "__main__":
-    parser = ChatParser('WhatsApp_Chat_Isa/chat_Isa.txt')
+@app.get("/", response_class=HTMLResponse)
+async def root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    contents = await file.read()
+    chat_text = contents.decode("utf-8")
+
+    # Save the uploaded file temporarily
+    temp_file_path = "temp_chat.txt"
+    with open(temp_file_path, "w", encoding="utf-8") as temp_file:
+        temp_file.write(chat_text)
+
+    # Parse the chat
+    parser = ChatParser(temp_file_path)
     parser.parse()
     people = parser.get_people()
 
+    # Generate plots
+    plots = {}
     for person in people:
         word_freq = get_word_frequencies(people[person].get_messages_tokenized())
-        plot_word_frequencies(word_freq, person)
+        word_plot = plot_word_frequencies(word_freq, person)
         bigram_freq = get_bigram_frequencies(people[person].get_messages_tokenized())
-        plot_bigram_frequencies(bigram_freq, person)
+        bigram_plot = plot_bigram_frequencies(bigram_freq, person)
+
+        plots[person] = {
+            "word_freq": pio.to_html(word_plot, full_html=False),
+            "bigram_freq": pio.to_html(bigram_plot, full_html=False)
+        }
+
+    # Remove the temporary file
+    os.remove(temp_file_path)
+
+    return {"plots": plots}
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
